@@ -2,47 +2,51 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 
-const BACKEND_URL = "http://localhost:8000"; // или URL вашего деплоя
+const BACKEND_URL = "http://localhost:8000"; // или URL деплоя
 
 function App() {
   const tg = window.Telegram?.WebApp;
+
+  // ================= Основные состояния =================
   const [balance, setBalance] = useState(0);
   const [currency, setCurrency] = useState("₽");
   const [report, setReport] = useState(null);
 
-  // Инициализация Telegram WebApp
+  // Для приветственного экрана
+  const [isFirstVisit, setIsFirstVisit] = useState(true);
+  const [tempCurrency, setTempCurrency] = useState("₽");
+  const [tempBalance, setTempBalance] = useState("");
+
+  // ================= Telegram WebApp =================
   useEffect(() => {
-    if (tg) {
-      tg.expand();
+    if (tg) tg.expand();
+    if (tg?.MainButton) {
       tg.MainButton.text = "Добавить запись";
       tg.MainButton.show();
-      tg.MainButton.onClick(() => handleAddRecord("income", 100)); // пример для кнопки WebApp
+      tg.MainButton.onClick(() => {
+        const amount = parseFloat(prompt("Введите сумму дохода:", "100"));
+        if (amount) handleAddRecord("income", amount);
+      });
     }
   }, [tg]);
 
-  // Добавление записи
+  // ================= API =================
   const handleAddRecord = async (type, amount) => {
     const user_id = tg?.initDataUnsafe?.user?.id;
     try {
       const res = await fetch(`${BACKEND_URL}/api/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: type,
-          amount: amount,
-          currency: currency,
-          user_id: user_id
-        }),
+        body: JSON.stringify({ type, amount, currency, user_id }),
       });
       const data = await res.json();
       alert(`✅ Добавлено: ${type} ${amount} ${currency}`);
-      fetchBalance(); // обновляем баланс
+      fetchBalance();
     } catch (error) {
       alert("Ошибка при добавлении записи");
     }
   };
 
-  // Получение отчёта
   const fetchReport = async (period) => {
     const user_id = tg?.initDataUnsafe?.user?.id;
     try {
@@ -54,7 +58,6 @@ function App() {
     }
   };
 
-  // Получаем баланс (income - expense)
   const fetchBalance = async () => {
     const user_id = tg?.initDataUnsafe?.user?.id;
     try {
@@ -66,21 +69,67 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    fetchBalance();
-  }, []);
+  // ================= Сохранение стартовых данных =================
+  const handleSaveStartData = () => {
+    if (!tempBalance || isNaN(tempBalance)) {
+      alert("Введите корректный стартовый баланс");
+      return;
+    }
+    setCurrency(tempCurrency);
+    setBalance(parseFloat(tempBalance));
+    setIsFirstVisit(false);
+  };
+
+  // ================= JSX =================
+  if (isFirstVisit) {
+    return (
+      <div className="App" style={{ padding: "20px", fontFamily: "sans-serif" }}>
+        <h1>👋 Добро пожаловать!</h1>
+        <p>Выберите валюту приложения и введите стартовый баланс:</p>
+
+        <div style={{ margin: "10px 0" }}>
+          <label>Валюта: </label>
+          <select value={tempCurrency} onChange={(e) => setTempCurrency(e.target.value)}>
+            <option value="₽">₽ (рубли)</option>
+            <option value="$">$ (доллары)</option>
+            <option value="€">€ (евро)</option>
+          </select>
+        </div>
+
+        <div style={{ margin: "10px 0" }}>
+          <label>Стартовый баланс: </label>
+          <input
+            type="number"
+            value={tempBalance}
+            onChange={(e) => setTempBalance(e.target.value)}
+            placeholder="0"
+          />
+        </div>
+
+        <button
+          onClick={handleSaveStartData}
+          style={{ padding: "10px 20px", borderRadius: "8px", cursor: "pointer" }}
+        >
+          Сохранить
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="App" style={{ padding: "20px", fontFamily: "sans-serif" }}>
       <h1>💰 Финансы</h1>
 
-      <div className="balance-card" style={{
-        padding: "15px",
-        margin: "10px 0",
-        backgroundColor: "#f5f5f5",
-        borderRadius: "10px",
-        fontSize: "1.2rem"
-      }}>
+      <div
+        className="balance-card"
+        style={{
+          padding: "15px",
+          margin: "10px 0",
+          backgroundColor: "#f5f5f5",
+          borderRadius: "10px",
+          fontSize: "1.2rem",
+        }}
+      >
         Баланс: <strong>{balance} {currency}</strong>
       </div>
 
@@ -114,12 +163,15 @@ function App() {
       </div>
 
       {report && (
-        <div className="report-card" style={{
-          padding: "15px",
-          backgroundColor: "#f0f8ff",
-          borderRadius: "10px",
-          marginTop: "20px"
-        }}>
+        <div
+          className="report-card"
+          style={{
+            padding: "15px",
+            backgroundColor: "#f0f8ff",
+            borderRadius: "10px",
+            marginTop: "20px",
+          }}
+        >
           <h3>📊 Отчёт ({report.period_label})</h3>
           <p>Доход: {report.income} {currency}</p>
           <p>Расход: {report.expense} {currency}</p>
