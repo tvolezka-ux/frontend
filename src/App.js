@@ -2,37 +2,44 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 
-const BACKEND_URL = "https://frontend-nine-phi-39.vercel.app/"; // или URL деплоя
+const BACKEND_URL = "https://frontend-nine-phi-39.vercel.app"; // заменишь на свой backend URL
 
 function App() {
   const tg = window.Telegram?.WebApp;
 
-  // ================= Основные состояния =================
+  // ================= Состояния =================
   const [balance, setBalance] = useState(0);
   const [currency, setCurrency] = useState("₽");
   const [report, setReport] = useState(null);
-
-  // Для приветственного экрана
   const [isFirstVisit, setIsFirstVisit] = useState(true);
   const [tempCurrency, setTempCurrency] = useState("₽");
   const [tempBalance, setTempBalance] = useState("");
 
-  // ================= Telegram WebApp =================
+  // ================= При загрузке =================
   useEffect(() => {
     if (tg) tg.expand();
-    if (tg?.MainButton) {
-      tg.MainButton.text = "Добавить запись";
-      tg.MainButton.show();
-      tg.MainButton.onClick(() => {
-        const amount = parseFloat(prompt("Введите сумму дохода:", "100"));
-        if (amount) handleAddRecord("income", amount);
-      });
-    }
-  }, [tg]);
 
-  // ================= API =================
+    // Проверяем, есть ли сохранённые данные
+    const savedCurrency = localStorage.getItem("currency");
+    const savedBalance = localStorage.getItem("balance");
+    const savedVisit = localStorage.getItem("isFirstVisit");
+
+    if (savedVisit === "false" && savedCurrency && savedBalance) {
+      setCurrency(savedCurrency);
+      setBalance(parseFloat(savedBalance));
+      setIsFirstVisit(false);
+    }
+  }, []);
+
+  // ================= Добавление записи =================
   const handleAddRecord = async (type, amount) => {
     const user_id = tg?.initDataUnsafe?.user?.id;
+
+    if (!user_id) {
+      alert("❗ Открой приложение через Telegram-бота, а не напрямую.");
+      return;
+    }
+
     try {
       const res = await fetch(`${BACKEND_URL}/api/add`, {
         method: "POST",
@@ -40,26 +47,39 @@ function App() {
         body: JSON.stringify({ type, amount, currency, user_id }),
       });
       const data = await res.json();
-      alert(`✅ Добавлено: ${type} ${amount} ${currency}`);
+      alert(`✅ Добавлено: ${type === "income" ? "доход" : "расход"} ${amount} ${currency}`);
       fetchBalance();
     } catch (error) {
+      console.error("Ошибка при добавлении:", error);
       alert("Ошибка при добавлении записи");
     }
   };
 
+  // ================= Получение отчёта =================
   const fetchReport = async (period) => {
     const user_id = tg?.initDataUnsafe?.user?.id;
+
+    if (!user_id) {
+      alert("❗ Ошибка: приложение запущено не из Telegram. Открой через бота.");
+      return;
+    }
+
     try {
       const res = await fetch(`${BACKEND_URL}/api/report?period=${period}&user_id=${user_id}`);
+      if (!res.ok) throw new Error("Ошибка сервера");
       const data = await res.json();
       setReport(data);
     } catch (error) {
+      console.error("Ошибка при получении отчёта:", error);
       alert("Ошибка при получении отчёта");
     }
   };
 
+  // ================= Баланс =================
   const fetchBalance = async () => {
     const user_id = tg?.initDataUnsafe?.user?.id;
+    if (!user_id) return;
+
     try {
       const res = await fetch(`${BACKEND_URL}/api/report?period=year&user_id=${user_id}`);
       const data = await res.json();
@@ -75,12 +95,18 @@ function App() {
       alert("Введите корректный стартовый баланс");
       return;
     }
+
     setCurrency(tempCurrency);
     setBalance(parseFloat(tempBalance));
     setIsFirstVisit(false);
+
+    // 🧠 сохраняем данные локально
+    localStorage.setItem("currency", tempCurrency);
+    localStorage.setItem("balance", tempBalance);
+    localStorage.setItem("isFirstVisit", "false");
   };
 
-  // ================= JSX =================
+  // ================= Приветственный экран =================
   if (isFirstVisit) {
     return (
       <div className="App" style={{ padding: "20px", fontFamily: "sans-serif" }}>
@@ -116,6 +142,7 @@ function App() {
     );
   }
 
+  // ================= Основной экран =================
   return (
     <div className="App" style={{ padding: "20px", fontFamily: "sans-serif" }}>
       <h1>💰 Финансы</h1>
