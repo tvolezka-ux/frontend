@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 
-const BACKEND_URL = "http://localhost:8000"; // или URL деплоя
+const BACKEND_URL = "https://frontend-nine-phi-39.vercel.app/"; // или URL деплоя
 
 function App() {
   const tg = window.Telegram?.WebApp;
