@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 
-const BACKEND_URL = "https://frontend-nine-phi-39.vercel.app"; // заменишь на свой backend URL
+const BACKEND_URL = "https://finance-backend-u1ox.onrender.com"; // заменишь на свой backend URL
 
 function App() {
   const tg = window.Telegram?.WebApp;
