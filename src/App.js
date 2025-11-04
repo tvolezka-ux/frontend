@@ -26,10 +26,10 @@ function App() {
 
     Promise.all([
       fetch(`${BACKEND_URL}/api/get_user?user_id=${user_id}`).then(r => r.json()),
-      fetch(`${BACKEND_URL}/api/categories`).then(r => r.json()),
+      fetch(`${BACKEND_URL}/api/categories`).then(r => r.json()).catch(() => []),
     ])
       .then(([user, cats]) => {
-        setCategories(cats);
+        setCategories(cats || []);
         if (user && user.start_balance !== undefined) {
           setCurrency(user.currency);
           setBalance(user.start_balance);
@@ -41,27 +41,40 @@ function App() {
         ]);
       })
       .then(([reportData, recordsData]) => {
-        setBalance((reportData.start_balance || 0) + (reportData.income || 0) - (reportData.expense || 0));
+        setBalance(
+          (reportData.start_balance || 0) +
+          (reportData.income || 0) -
+          (reportData.expense || 0)
+        );
         setRecords(recordsData);
       })
-      .catch(e => console.error(e))
+      .catch(e => console.error("Ошибка загрузки:", e))
       .finally(() => setLoading(false));
   }, []);
 
+  // ✅ Инициализация нового пользователя
   const handleSaveStartData = async () => {
-    if (!tempBalance || isNaN(tempBalance)) return alert("Введите корректный баланс");
+    if (!tempBalance || isNaN(tempBalance))
+      return alert("Введите корректный баланс");
     const user_id = tg?.initDataUnsafe?.user?.id;
     if (!user_id) return alert("Открой приложение через Telegram.");
+
     await fetch(`${BACKEND_URL}/api/init_user`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id, currency: tempCurrency, start_balance: parseFloat(tempBalance) }),
+      body: JSON.stringify({
+        user_id,
+        currency: tempCurrency,
+        start_balance: parseFloat(tempBalance),
+      }),
     });
+
     setCurrency(tempCurrency);
     setBalance(parseFloat(tempBalance));
     setIsFirstVisit(false);
   };
 
+  // ✅ Добавить операцию
   const handleAddRecord = async (type) => {
     const user_id = tg?.initDataUnsafe?.user?.id;
     const amount = parseFloat(prompt("Введите сумму:", "100"));
@@ -73,13 +86,22 @@ function App() {
     await fetch(`${BACKEND_URL}/api/add`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id, type, amount, currency, category_id: category_id || null, description }),
+      body: JSON.stringify({
+        user_id,
+        type,
+        amount,
+        currency,
+        category_id: category_id || null,
+        description,
+      }),
     });
+
     alert("✅ Добавлено!");
     fetchRecords();
     fetchBalance();
   };
 
+  // ✅ Редактировать операцию
   const handleEditRecord = async (r) => {
     const newAmount = parseFloat(prompt("Новая сумма:", r.amount));
     if (!newAmount) return;
@@ -90,37 +112,70 @@ function App() {
     await fetch(`${BACKEND_URL}/api/update/${r.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: newType, amount: newAmount, description: newDesc, category_id: newCat || null }),
+      body: JSON.stringify({
+        type: newType,
+        amount: newAmount,
+        description: newDesc,
+        category_id: newCat || null,
+      }),
     });
+
     alert("✅ Обновлено");
     fetchRecords();
     fetchBalance();
   };
 
+  // ✅ Получить список операций
   const fetchRecords = async () => {
     const user_id = tg?.initDataUnsafe?.user?.id;
     const res = await fetch(`${BACKEND_URL}/api/records?user_id=${user_id}`);
     setRecords(await res.json());
   };
 
+  // ✅ Получить баланс
   const fetchBalance = async () => {
     const user_id = tg?.initDataUnsafe?.user?.id;
     const res = await fetch(`${BACKEND_URL}/api/report?period=year&user_id=${user_id}`);
     const data = await res.json();
-    setBalance((data.start_balance || 0) + (data.income || 0) - (data.expense || 0));
+    setBalance(
+      (data.start_balance || 0) + (data.income || 0) - (data.expense || 0)
+    );
   };
+
+  // ✅ Получить отчёт
+  const fetchReport = async (period) => {
+    const user_id = tg?.initDataUnsafe?.user?.id;
+    const res = await fetch(`${BACKEND_URL}/api/report?period=${period}&user_id=${user_id}`);
+    const data = await res.json();
+    setReport({
+      ...data,
+      balance:
+        (data.start_balance || 0) + (data.income || 0) - (data.expense || 0),
+    });
+  };
+
+  // ========================== UI ==========================
+  if (loading) return <div className="App" style={{ padding: 20 }}>Загрузка...</div>;
 
   if (isFirstVisit)
     return (
       <div className="App" style={{ padding: 20 }}>
         <h1>👋 Добро пожаловать!</h1>
         <p>Введите валюту и стартовый баланс:</p>
-        <select value={tempCurrency} onChange={e => setTempCurrency(e.target.value)}>
+        <select
+          value={tempCurrency}
+          onChange={(e) => setTempCurrency(e.target.value)}
+        >
           <option value="₽">₽</option>
           <option value="$">$</option>
           <option value="€">€</option>
         </select>
-        <input type="number" value={tempBalance} onChange={e => setTempBalance(e.target.value)} placeholder="Баланс" />
+        <input
+          type="number"
+          value={tempBalance}
+          onChange={(e) => setTempBalance(e.target.value)}
+          placeholder="Баланс"
+        />
         <button onClick={handleSaveStartData}>Сохранить</button>
       </div>
     );
@@ -128,36 +183,67 @@ function App() {
   return (
     <div className="App" style={{ padding: 20, fontFamily: "sans-serif" }}>
       {/* Навигация */}
-      <div style={{ display: "flex", justifyContent: "space-around", marginBottom: 20 }}>
-        <button onClick={() => setTab("home")} style={{ flex: 1 }}>🏠 Главная</button>
-        <button onClick={() => setTab("report")} style={{ flex: 1 }}>📊 Отчёт</button>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-around",
+          marginBottom: 20,
+        }}
+      >
+        <button onClick={() => setTab("home")} style={{ flex: 1 }}>
+          🏠 Главная
+        </button>
+        <button onClick={() => setTab("report")} style={{ flex: 1 }}>
+          📊 Отчёт
+        </button>
       </div>
 
+      {/* Главная */}
       {tab === "home" ? (
         <>
-          <h2>💰 Баланс: {balance} {currency}</h2>
+          <h2>
+            💰 Баланс: {balance} {currency}
+          </h2>
 
           <div style={{ display: "flex", gap: 10, margin: "20px 0" }}>
-            <button onClick={() => handleAddRecord("income")} style={{ flex: 1 }}>➕ Доход</button>
-            <button onClick={() => handleAddRecord("expense")} style={{ flex: 1 }}>➖ Расход</button>
+            <button onClick={() => handleAddRecord("income")} style={{ flex: 1 }}>
+              ➕ Доход
+            </button>
+            <button onClick={() => handleAddRecord("expense")} style={{ flex: 1 }}>
+              ➖ Расход
+            </button>
           </div>
 
           <h3>📜 Последние операции</h3>
-          {records.length === 0 ? <p>Нет операций</p> : records.map(r => (
-            <div key={r.id} onClick={() => handleEditRecord(r)} style={{
-              padding: "10px",
-              margin: "5px 0",
-              borderRadius: "8px",
-              backgroundColor: r.type === "income" ? "#eaffea" : "#ffeaea",
-              cursor: "pointer"
-            }}>
-              {r.type === "income" ? "➕" : "➖"} {r.amount} {currency} {r.category_name && `(${r.category_name})`}
-              <div style={{ fontSize: "0.8rem", color: "#666" }}>{r.description || "—"} | {new Date(r.created_at).toLocaleString()}</div>
-            </div>
-          ))}
+          {records.length === 0 ? (
+            <p>Нет операций</p>
+          ) : (
+            records.map((r) => (
+              <div
+                key={r.id}
+                onClick={() => handleEditRecord(r)}
+                style={{
+                  padding: "10px",
+                  margin: "5px 0",
+                  borderRadius: "8px",
+                  backgroundColor:
+                    r.type === "income" ? "#eaffea" : "#ffeaea",
+                  cursor: "pointer",
+                }}
+              >
+                {r.type === "income" ? "➕" : "➖"} {r.amount} {currency}{" "}
+                {r.category_name && `(${r.category_name})`}
+                <div style={{ fontSize: "0.8rem", color: "#666" }}>
+                  {r.description || "—"} |{" "}
+                  {new Date(r.created_at).toLocaleString()}
+                </div>
+              </div>
+            ))
+          )}
         </>
       ) : (
         <>
+          {/* Отчёт */}
           <h2>📊 Отчёт</h2>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => fetchReport("day")}>Сутки</button>
@@ -167,11 +253,26 @@ function App() {
           </div>
 
           {report && (
-            <div style={{ backgroundColor: "#f0f8ff", padding: 15, borderRadius: 10, marginTop: 20 }}>
-              <p><b>Период:</b> {report.period_label}</p>
-              <p>Доход: {report.income} {currency}</p>
-              <p>Расход: {report.expense} {currency}</p>
-              <p>Баланс: {report.balance} {currency}</p>
+            <div
+              style={{
+                backgroundColor: "#f0f8ff",
+                padding: 15,
+                borderRadius: 10,
+                marginTop: 20,
+              }}
+            >
+              <p>
+                <b>Период:</b> {report.period_label}
+              </p>
+              <p>
+                Доход: {report.income} {currency}
+              </p>
+              <p>
+                Расход: {report.expense} {currency}
+              </p>
+              <p>
+                Баланс: {report.balance} {currency}
+              </p>
             </div>
           )}
         </>
