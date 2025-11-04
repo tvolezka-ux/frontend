@@ -10,144 +10,242 @@ function App() {
   const [balance, setBalance] = useState(null);
   const [currency, setCurrency] = useState("₽");
   const [report, setReport] = useState(null);
-  const [operations, setOperations] = useState([]);
-  const [editingOp, setEditingOp] = useState(null);
+  const [records, setRecords] = useState([]); // 👈 операции
+  const [isFirstVisit, setIsFirstVisit] = useState(true);
+  const [tempCurrency, setTempCurrency] = useState("₽");
+  const [tempBalance, setTempBalance] = useState("");
   const [loading, setLoading] = useState(true);
+  const [editingRecord, setEditingRecord] = useState(null); // 👈 редактируемая операция
 
-  const user_id = tg?.initDataUnsafe?.user?.id;
-
-  // === Загрузка данных ===
+  // ================= Загрузка данных =================
   useEffect(() => {
     if (tg) tg.expand();
-    if (user_id) {
-      fetchAll();
+
+    const savedCurrency = localStorage.getItem("currency");
+    const savedBalance = localStorage.getItem("balance");
+    const savedVisit = localStorage.getItem("isFirstVisit");
+
+    if (savedVisit === "false" && savedCurrency && savedBalance) {
+      setCurrency(savedCurrency);
+      setBalance(parseFloat(savedBalance));
+      setIsFirstVisit(false);
     }
+
+    const user_id = tg?.initDataUnsafe?.user?.id;
+    if (user_id) {
+      Promise.all([
+        fetch(`${BACKEND_URL}/api/report?period=year&user_id=${user_id}`).then((r) => r.json()),
+        fetch(`${BACKEND_URL}/api/records?user_id=${user_id}`).then((r) => r.json()),
+      ])
+        .then(([reportData, recordsData]) => {
+          setBalance((reportData.income || 0) - (reportData.expense || 0));
+          setRecords(recordsData);
+        })
+        .catch((err) => console.error("Ошибка загрузки:", err))
+        .finally(() => setLoading(false));
+    } else setLoading(false);
   }, []);
 
-  const fetchAll = async () => {
-    await Promise.all([fetchBalance(), fetchOperations()]);
-    setLoading(false);
+  // ================= Добавление записи =================
+  const handleAddRecord = async (type, amount) => {
+    const user_id = tg?.initDataUnsafe?.user?.id;
+    if (!user_id) return alert("Открой через Telegram-бота.");
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, amount, currency, user_id }),
+      });
+      if (!res.ok) throw new Error();
+      alert(`✅ Добавлено: ${type === "income" ? "доход" : "расход"} ${amount} ${currency}`);
+      fetchBalance();
+      fetchRecords();
+    } catch {
+      alert("Ошибка при добавлении записи");
+    }
   };
 
+  // ================= Получение отчёта =================
+  const fetchReport = async (period) => {
+    const user_id = tg?.initDataUnsafe?.user?.id;
+    if (!user_id) return;
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/report?period=${period}&user_id=${user_id}`);
+      const data = await res.json();
+      setReport(data);
+    } catch {
+      alert("Ошибка при получении отчёта");
+    }
+  };
+
+  // ================= Получение списка операций =================
+  const fetchRecords = async () => {
+    const user_id = tg?.initDataUnsafe?.user?.id;
+    if (!user_id) return;
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/records?user_id=${user_id}`);
+      const data = await res.json();
+      setRecords(data);
+    } catch {
+      console.error("Ошибка при загрузке операций");
+    }
+  };
+
+  // ================= Обновление баланса =================
   const fetchBalance = async () => {
+    const user_id = tg?.initDataUnsafe?.user?.id;
+    if (!user_id) return;
+    const res = await fetch(`${BACKEND_URL}/api/report?period=year&user_id=${user_id}`);
+    const data = await res.json();
+    setBalance((data.income || 0) - (data.expense || 0));
+  };
+
+  // ================= Сохранение стартовых данных =================
+  const handleSaveStartData = () => {
+    if (!tempBalance || isNaN(tempBalance)) return alert("Введите корректный баланс");
+    setCurrency(tempCurrency);
+    setBalance(parseFloat(tempBalance));
+    setIsFirstVisit(false);
+    localStorage.setItem("currency", tempCurrency);
+    localStorage.setItem("balance", tempBalance);
+    localStorage.setItem("isFirstVisit", "false");
+  };
+
+  // ================= Редактирование записи =================
+  const handleEditRecord = async (record) => {
+    const newAmount = parseFloat(prompt("Введите новую сумму:", record.amount));
+    if (!newAmount) return;
     try {
-      const res = await fetch(`${BACKEND_URL}/api/report?period=year&user_id=${user_id}`);
-      const data = await res.json();
-      setBalance((data.income || 0) - (data.expense || 0));
-    } catch (e) {
-      console.error(e);
+      await fetch(`${BACKEND_URL}/api/update/${record.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: newAmount }),
+      });
+      alert("✅ Запись обновлена");
+      fetchRecords();
+      fetchBalance();
+    } catch {
+      alert("Ошибка при обновлении");
     }
   };
 
-  const fetchOperations = async () => {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/operations?user_id=${user_id}`);
-      const data = await res.json();
-      setOperations(data);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  // ================= Приветственный экран =================
+  if (isFirstVisit) {
+    return (
+      <div className="App" style={{ padding: "20px", fontFamily: "sans-serif" }}>
+        <h1>👋 Добро пожаловать!</h1>
+        <p>Выберите валюту и стартовый баланс:</p>
+        <div>
+          <label>Валюта: </label>
+          <select value={tempCurrency} onChange={(e) => setTempCurrency(e.target.value)}>
+            <option value="₽">₽</option>
+            <option value="$">$</option>
+            <option value="€">€</option>
+          </select>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <label>Стартовый баланс: </label>
+          <input
+            type="number"
+            value={tempBalance}
+            onChange={(e) => setTempBalance(e.target.value)}
+          />
+        </div>
+        <button onClick={handleSaveStartData} style={{ marginTop: 20 }}>
+          Сохранить
+        </button>
+      </div>
+    );
+  }
 
-  const handleAddRecord = async (type) => {
-    const amount = parseFloat(prompt(`Введите сумму для ${type === "income" ? "дохода" : "расхода"}:`));
-    if (!amount) return;
-    await fetch(`${BACKEND_URL}/api/add`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, amount, currency, user_id }),
-    });
-    fetchAll();
-  };
-
-  const handleUpdateOperation = async () => {
-    if (!editingOp) return;
-    await fetch(`${BACKEND_URL}/api/operations/${editingOp.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: editingOp.type,
-        amount: parseFloat(editingOp.amount),
-      }),
-    });
-    setEditingOp(null);
-    fetchAll();
-  };
-
+  // ================= Основной экран =================
   return (
-    <div className="App" style={{ padding: 20, fontFamily: "sans-serif" }}>
+    <div className="App" style={{ padding: "20px", fontFamily: "sans-serif" }}>
       <h1>💰 Финансы</h1>
 
-      <div style={{ padding: 15, backgroundColor: "#f5f5f5", borderRadius: 10 }}>
-        {loading ? "Загрузка..." : <>Баланс: <strong>{balance} {currency}</strong></>}
+      <div
+        className="balance-card"
+        style={{
+          padding: "15px",
+          margin: "10px 0",
+          backgroundColor: "#f5f5f5",
+          borderRadius: "10px",
+          fontSize: "1.2rem",
+        }}
+      >
+        {loading ? (
+          <strong>Загрузка баланса...</strong>
+        ) : (
+          <>Баланс: <strong>{balance} {currency}</strong></>
+        )}
       </div>
 
-      <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-        <button onClick={() => handleAddRecord("income")} style={{ flex: 1 }}>➕ Доход</button>
-        <button onClick={() => handleAddRecord("expense")} style={{ flex: 1 }}>➖ Расход</button>
+      {/* === Кнопки добавления === */}
+      <div style={{ display: "flex", gap: "10px", margin: "20px 0" }}>
+        <button
+          onClick={() => {
+            const amount = parseFloat(prompt("Введите сумму дохода:", "100"));
+            if (amount) handleAddRecord("income", amount);
+          }}
+          style={{ flex: 1, padding: "10px", borderRadius: "8px" }}
+        >
+          ➕ Доход
+        </button>
+        <button
+          onClick={() => {
+            const amount = parseFloat(prompt("Введите сумму расхода:", "100"));
+            if (amount) handleAddRecord("expense", amount);
+          }}
+          style={{ flex: 1, padding: "10px", borderRadius: "8px" }}
+        >
+          ➖ Расход
+        </button>
       </div>
 
-      {/* ===== Список операций ===== */}
-      <div style={{ marginTop: 25 }}>
-        <h3>🧾 История операций</h3>
-        <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-          {operations.map(op => (
-            <div key={op.id}
-              onClick={() => setEditingOp(op)}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                backgroundColor: "#f9f9f9",
-                padding: 10,
-                marginBottom: 5,
-                borderRadius: 8,
-                cursor: "pointer"
-              }}>
-              <span>{op.type === "income" ? "➕" : "➖"} {op.amount} {currency}</span>
-              <span style={{ fontSize: "0.8rem", color: "#777" }}>
-                {new Date(op.created_at).toLocaleString()}
-              </span>
-            </div>
-          ))}
-        </div>
+      {/* === Кнопки отчётов === */}
+      <div style={{ display: "flex", gap: "10px", margin: "20px 0" }}>
+        <button onClick={() => fetchReport("day")} style={{ flex: 1 }}>Сутки</button>
+        <button onClick={() => fetchReport("week")} style={{ flex: 1 }}>Неделя</button>
+        <button onClick={() => fetchReport("month")} style={{ flex: 1 }}>Месяц</button>
+        <button onClick={() => fetchReport("year")} style={{ flex: 1 }}>Год</button>
       </div>
 
-      {/* ===== Модалка редактирования ===== */}
-      {editingOp && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: "rgba(0,0,0,0.5)", display: "flex",
-          justifyContent: "center", alignItems: "center"
-        }}>
-          <div style={{
-            backgroundColor: "#fff", padding: 20, borderRadius: 10, width: "90%"
-          }}>
-            <h3>✏️ Редактировать операцию</h3>
-            <label>Тип:</label>
-            <select
-              value={editingOp.type}
-              onChange={e => setEditingOp({ ...editingOp, type: e.target.value })}
-              style={{ width: "100%", marginBottom: 10 }}
-            >
-              <option value="income">Доход</option>
-              <option value="expense">Расход</option>
-            </select>
-
-            <label>Сумма:</label>
-            <input
-              type="number"
-              value={editingOp.amount}
-              onChange={e => setEditingOp({ ...editingOp, amount: e.target.value })}
-              style={{ width: "100%", marginBottom: 15 }}
-            />
-
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <button onClick={handleUpdateOperation}>💾 Сохранить</button>
-              <button onClick={() => setEditingOp(null)}>❌ Отмена</button>
-            </div>
-          </div>
+      {/* === Отчёт === */}
+      {report && (
+        <div style={{ backgroundColor: "#f0f8ff", padding: 15, borderRadius: 10, marginTop: 20 }}>
+          <h3>📊 Отчёт ({report.period_label})</h3>
+          <p>Доход: {report.income} {currency}</p>
+          <p>Расход: {report.expense} {currency}</p>
         </div>
       )}
+
+      {/* === Список операций === */}
+      <div style={{ marginTop: 30 }}>
+        <h3>📜 Последние операции</h3>
+        {records.length === 0 ? (
+          <p>Нет операций</p>
+        ) : (
+          records.map((r) => (
+            <div
+              key={r.id}
+              onClick={() => handleEditRecord(r)}
+              style={{
+                padding: "10px",
+                margin: "5px 0",
+                borderRadius: "8px",
+                backgroundColor: r.type === "income" ? "#eaffea" : "#ffeaea",
+                cursor: "pointer",
+              }}
+            >
+              {r.type === "income" ? "➕" : "➖"} {r.amount} {currency}
+              <div style={{ fontSize: "0.8rem", color: "#666" }}>
+                {new Date(r.created_at).toLocaleString()}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
