@@ -2,18 +2,19 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 
-const BACKEND_URL = "https://finance-backend-u1ox.onrender.com"; // заменишь на свой backend URL
+const BACKEND_URL = "https://finance-backend-u1ox.onrender.com"; // твой backend на Render
 
 function App() {
   const tg = window.Telegram?.WebApp;
 
   // ================= Состояния =================
-  const [balance, setBalance] = useState(0);
+  const [balance, setBalance] = useState(null); // 👈 изначально null, чтобы показать "Загрузка..."
   const [currency, setCurrency] = useState("₽");
   const [report, setReport] = useState(null);
   const [isFirstVisit, setIsFirstVisit] = useState(true);
   const [tempCurrency, setTempCurrency] = useState("₽");
   const [tempBalance, setTempBalance] = useState("");
+  const [loading, setLoading] = useState(true); // 👈 индикатор загрузки баланса
 
   // ================= При загрузке =================
   useEffect(() => {
@@ -28,6 +29,20 @@ function App() {
       setCurrency(savedCurrency);
       setBalance(parseFloat(savedBalance));
       setIsFirstVisit(false);
+    }
+
+    // 👇 Загружаем актуальный баланс с backend
+    const user_id = tg?.initDataUnsafe?.user?.id;
+    if (user_id) {
+      fetch(`${BACKEND_URL}/api/report?period=year&user_id=${user_id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setBalance((data.income || 0) - (data.expense || 0));
+        })
+        .catch((err) => console.error("Ошибка при загрузке баланса:", err))
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
     }
   }, []);
 
@@ -46,9 +61,12 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type, amount, currency, user_id }),
       });
+
+      if (!res.ok) throw new Error("Ошибка запроса");
+
       const data = await res.json();
       alert(`✅ Добавлено: ${type === "income" ? "доход" : "расход"} ${amount} ${currency}`);
-      fetchBalance();
+      fetchBalance(); // обновляем баланс после добавления
     } catch (error) {
       console.error("Ошибка при добавлении:", error);
       alert("Ошибка при добавлении записи");
@@ -75,7 +93,7 @@ function App() {
     }
   };
 
-  // ================= Баланс =================
+  // ================= Обновление баланса =================
   const fetchBalance = async () => {
     const user_id = tg?.initDataUnsafe?.user?.id;
     if (!user_id) return;
@@ -157,7 +175,13 @@ function App() {
           fontSize: "1.2rem",
         }}
       >
-        Баланс: <strong>{balance} {currency}</strong>
+        {loading ? (
+          <strong>Загрузка баланса...</strong>
+        ) : (
+          <>
+            Баланс: <strong>{balance} {currency}</strong>
+          </>
+        )}
       </div>
 
       <div className="menu-buttons" style={{ display: "flex", gap: "10px", margin: "20px 0" }}>
