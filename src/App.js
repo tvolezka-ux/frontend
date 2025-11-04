@@ -10,41 +10,72 @@ function App() {
   const [balance, setBalance] = useState(null);
   const [currency, setCurrency] = useState("₽");
   const [report, setReport] = useState(null);
-  const [records, setRecords] = useState([]); // 👈 операции
+  const [records, setRecords] = useState([]);
   const [isFirstVisit, setIsFirstVisit] = useState(true);
   const [tempCurrency, setTempCurrency] = useState("₽");
   const [tempBalance, setTempBalance] = useState("");
   const [loading, setLoading] = useState(true);
-  const [editingRecord, setEditingRecord] = useState(null); // 👈 редактируемая операция
 
   // ================= Загрузка данных =================
   useEffect(() => {
     if (tg) tg.expand();
 
-    const savedCurrency = localStorage.getItem("currency");
-    const savedBalance = localStorage.getItem("balance");
-    const savedVisit = localStorage.getItem("isFirstVisit");
-
-    if (savedVisit === "false" && savedCurrency && savedBalance) {
-      setCurrency(savedCurrency);
-      setBalance(parseFloat(savedBalance));
-      setIsFirstVisit(false);
-    }
-
     const user_id = tg?.initDataUnsafe?.user?.id;
-    if (user_id) {
-      Promise.all([
-        fetch(`${BACKEND_URL}/api/report?period=year&user_id=${user_id}`).then((r) => r.json()),
-        fetch(`${BACKEND_URL}/api/records?user_id=${user_id}`).then((r) => r.json()),
-      ])
-        .then(([reportData, recordsData]) => {
-          setBalance((reportData.income || 0) - (reportData.expense || 0));
-          setRecords(recordsData);
-        })
-        .catch((err) => console.error("Ошибка загрузки:", err))
-        .finally(() => setLoading(false));
-    } else setLoading(false);
+    if (!user_id) return setLoading(false);
+
+    // Загружаем данные пользователя
+    fetch(`${BACKEND_URL}/api/get_user?user_id=${user_id}`)
+      .then((res) => res.json())
+      .then((user) => {
+        if (user && user.start_balance !== undefined) {
+          setCurrency(user.currency);
+          setBalance(user.start_balance);
+          setIsFirstVisit(user.start_balance === 0);
+        } else {
+          setIsFirstVisit(true);
+        }
+      })
+      .then(() => {
+        // После загрузки пользователя — грузим отчёт и операции
+        Promise.all([
+          fetch(`${BACKEND_URL}/api/report?period=year&user_id=${user_id}`).then((r) => r.json()),
+          fetch(`${BACKEND_URL}/api/records?user_id=${user_id}`).then((r) => r.json()),
+        ])
+          .then(([reportData, recordsData]) => {
+            setBalance(
+              (reportData.income || 0) - (reportData.expense || 0)
+            );
+            setRecords(recordsData);
+          })
+          .finally(() => setLoading(false));
+      })
+      .catch(() => setLoading(false));
   }, []);
+
+  // ================= Сохранение стартовых данных =================
+  const handleSaveStartData = async () => {
+    if (!tempBalance || isNaN(tempBalance))
+      return alert("Введите корректный баланс");
+    const user_id = tg?.initDataUnsafe?.user?.id;
+    if (!user_id) return alert("Открой приложение через Telegram.");
+
+    try {
+      await fetch(`${BACKEND_URL}/api/init_user`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id,
+          currency: tempCurrency,
+          start_balance: parseFloat(tempBalance),
+        }),
+      });
+      setCurrency(tempCurrency);
+      setBalance(parseFloat(tempBalance));
+      setIsFirstVisit(false);
+    } catch {
+      alert("Ошибка при сохранении данных");
+    }
+  };
 
   // ================= Добавление записи =================
   const handleAddRecord = async (type, amount) => {
@@ -101,17 +132,6 @@ function App() {
     setBalance((data.income || 0) - (data.expense || 0));
   };
 
-  // ================= Сохранение стартовых данных =================
-  const handleSaveStartData = () => {
-    if (!tempBalance || isNaN(tempBalance)) return alert("Введите корректный баланс");
-    setCurrency(tempCurrency);
-    setBalance(parseFloat(tempBalance));
-    setIsFirstVisit(false);
-    localStorage.setItem("currency", tempCurrency);
-    localStorage.setItem("balance", tempBalance);
-    localStorage.setItem("isFirstVisit", "false");
-  };
-
   // ================= Редактирование записи =================
   const handleEditRecord = async (record) => {
     const newAmount = parseFloat(prompt("Введите новую сумму:", record.amount));
@@ -138,7 +158,10 @@ function App() {
         <p>Выберите валюту и стартовый баланс:</p>
         <div>
           <label>Валюта: </label>
-          <select value={tempCurrency} onChange={(e) => setTempCurrency(e.target.value)}>
+          <select
+            value={tempCurrency}
+            onChange={(e) => setTempCurrency(e.target.value)}
+          >
             <option value="₽">₽</option>
             <option value="$">$</option>
             <option value="€">€</option>
@@ -213,7 +236,14 @@ function App() {
 
       {/* === Отчёт === */}
       {report && (
-        <div style={{ backgroundColor: "#f0f8ff", padding: 15, borderRadius: 10, marginTop: 20 }}>
+        <div
+          style={{
+            backgroundColor: "#f0f8ff",
+            padding: 15,
+            borderRadius: 10,
+            marginTop: 20,
+          }}
+        >
           <h3>📊 Отчёт ({report.period_label})</h3>
           <p>Доход: {report.income} {currency}</p>
           <p>Расход: {report.expense} {currency}</p>
