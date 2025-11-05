@@ -1,18 +1,18 @@
 // src/App.js
 import React, { useEffect, useState } from "react";
 import "./App.css";
-import { Home, List, BarChart3, Settings } from "lucide-react";
+import { Home, List, BarChart3, Settings, Eye, EyeOff } from "lucide-react";
 
 const BACKEND_URL = "https://finance-backend-u1ox.onrender.com";
 
-// ✅ Добавляем стили прямо здесь, чтобы не было смещения
+// ✅ Основной стиль контейнера
 const appStyle = {
   display: "flex",
   flexDirection: "column",
   minHeight: "100vh",
   backgroundColor: "#f9fafb",
   alignItems: "center",
-  justifyContent: "center",
+  justifyContent: "flex-start",
   paddingBottom: "4rem",
 };
 
@@ -20,6 +20,7 @@ const contentStyle = {
   width: "100%",
   maxWidth: "500px",
   flexGrow: 1,
+  paddingTop: "70px", // отступ под шапку
 };
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
   const [tempCurrency, setTempCurrency] = useState("₽");
   const [tempBalance, setTempBalance] = useState("");
   const [loading, setLoading] = useState(true);
+  const [hideBalance, setHideBalance] = useState(false); // 👁‍🗨 добавлено
 
   useEffect(() => {
     if (tg) tg.expand();
@@ -204,26 +206,7 @@ function App() {
     switch (tab) {
       case "home":
         return (
-          <div style={contentStyle} className="p-4 pb-20">
-            <h2 className="text-lg font-semibold">
-              💰 Баланс: {balance} {currency}
-            </h2>
-
-            <div className="flex gap-2 my-4">
-              <button
-                onClick={() => handleAddRecord("income")}
-                className="flex-1 bg-green-500 text-white py-2 rounded"
-              >
-                ➕ Доход
-              </button>
-              <button
-                onClick={() => handleAddRecord("expense")}
-                className="flex-1 bg-red-500 text-white py-2 rounded"
-              >
-                ➖ Расход
-              </button>
-            </div>
-
+          <div className="p-4 pb-20">
             <h3 className="text-md font-semibold mb-2">📜 Последние операции</h3>
             {records.length === 0 ? (
               <p>Нет операций</p>
@@ -250,7 +233,7 @@ function App() {
 
       case "records":
         return (
-          <div style={contentStyle} className="p-4 pb-20">
+          <div className="p-4 pb-20">
             <h2 className="text-lg font-semibold mb-2">📋 Все операции</h2>
             {records.length === 0 ? (
               <p>Нет операций</p>
@@ -277,21 +260,13 @@ function App() {
 
       case "reports":
         return (
-          <div style={contentStyle} className="p-4 pb-20">
+          <div className="p-4 pb-20">
             <h2 className="text-lg font-semibold">📊 Отчёт</h2>
             <div className="flex gap-2 my-2">
-              <button onClick={() => fetchReport("day")} className="flex-1 bg-gray-100 rounded py-2">
-                Сутки
-              </button>
-              <button onClick={() => fetchReport("week")} className="flex-1 bg-gray-100 rounded py-2">
-                Неделя
-              </button>
-              <button onClick={() => fetchReport("month")} className="flex-1 bg-gray-100 rounded py-2">
-                Месяц
-              </button>
-              <button onClick={() => fetchReport("year")} className="flex-1 bg-gray-100 rounded py-2">
-                Год
-              </button>
+              <button onClick={() => fetchReport("day")} className="flex-1 bg-gray-100 rounded py-2">Сутки</button>
+              <button onClick={() => fetchReport("week")} className="flex-1 bg-gray-100 rounded py-2">Неделя</button>
+              <button onClick={() => fetchReport("month")} className="flex-1 bg-gray-100 rounded py-2">Месяц</button>
+              <button onClick={() => fetchReport("year")} className="flex-1 bg-gray-100 rounded py-2">Год</button>
             </div>
 
             {report && (
@@ -307,10 +282,10 @@ function App() {
 
       case "settings":
         return (
-          <div style={contentStyle} className="p-4 pb-20">
+          <div className="p-4 pb-20">
             <h2 className="text-lg font-semibold mb-2">⚙️ Настройки</h2>
             <p>Валюта: {currency}</p>
-            <p>Стартовый баланс: {balance}</p>
+            <p>Текущий баланс: {balance}</p>
           </div>
         );
 
@@ -321,9 +296,24 @@ function App() {
 
   return (
     <div style={appStyle}>
+      {/* ===== Верхняя шапка с балансом (только для Главной и Операций) ===== */}
+      {(tab === "home" || tab === "records") && (
+        <header className="fixed top-0 left-0 w-full h-14 bg-gradient-to-r from-blue-500 to-blue-400 text-white flex justify-between items-center px-4 shadow-md z-10">
+          <h2 className="text-lg font-semibold">
+            Баланс: {hideBalance ? "****" : `${balance?.toLocaleString()} ${currency}`}
+          </h2>
+          <button
+            className="bg-transparent text-white"
+            onClick={() => setHideBalance(!hideBalance)}
+          >
+            {hideBalance ? <EyeOff size={22} /> : <Eye size={22} />}
+          </button>
+        </header>
+      )}
+
       <div style={contentStyle}>{renderContent()}</div>
 
-      {/* Нижняя панель навигации */}
+      {/* ===== Нижняя панель навигации ===== */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-sm flex justify-around items-center py-2">
         <button onClick={() => setTab("home")} className={`flex flex-col items-center text-sm ${tab === "home" ? "text-blue-600" : "text-gray-500"}`}>
           <Home size={22} />
