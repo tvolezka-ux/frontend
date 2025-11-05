@@ -1,6 +1,7 @@
 // src/App.js
 import React, { useEffect, useState } from "react";
 import "./App.css";
+import { Home, List, BarChart3, Settings } from "lucide-react";
 
 const BACKEND_URL = "https://finance-backend-u1ox.onrender.com";
 
@@ -43,7 +44,7 @@ function App() {
       .then(([reportData, recordsData]) => {
         setBalance(
           (reportData.start_balance || 0) +
-          (reportData.income || 0) -
+          (reportData.income || 0) - 
           (reportData.expense || 0)
         );
         setRecords(recordsData);
@@ -52,7 +53,7 @@ function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ✅ Инициализация нового пользователя
+  // ✅ Сохранить стартовые данные
   const handleSaveStartData = async () => {
     if (!tempBalance || isNaN(tempBalance))
       return alert("Введите корректный баланс");
@@ -125,7 +126,7 @@ function App() {
     fetchBalance();
   };
 
-  // ✅ Получить список операций
+  // ✅ Получить операции
   const fetchRecords = async () => {
     const user_id = tg?.initDataUnsafe?.user?.id;
     const res = await fetch(`${BACKEND_URL}/api/records?user_id=${user_id}`);
@@ -155,16 +156,18 @@ function App() {
   };
 
   // ========================== UI ==========================
-  if (loading) return <div className="App" style={{ padding: 20 }}>Загрузка...</div>;
+
+  if (loading) return <div className="App p-4">Загрузка...</div>;
 
   if (isFirstVisit)
     return (
-      <div className="App" style={{ padding: 20 }}>
+      <div className="App p-4 text-center">
         <h1>👋 Добро пожаловать!</h1>
         <p>Введите валюту и стартовый баланс:</p>
         <select
           value={tempCurrency}
           onChange={(e) => setTempCurrency(e.target.value)}
+          className="border rounded p-2"
         >
           <option value="₽">₽</option>
           <option value="$">$</option>
@@ -175,108 +178,162 @@ function App() {
           value={tempBalance}
           onChange={(e) => setTempBalance(e.target.value)}
           placeholder="Баланс"
+          className="border rounded p-2 mx-2"
         />
-        <button onClick={handleSaveStartData}>Сохранить</button>
+        <button
+          onClick={handleSaveStartData}
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          Сохранить
+        </button>
       </div>
     );
 
-  return (
-    <div className="App" style={{ padding: 20, fontFamily: "sans-serif" }}>
-      {/* Навигация */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-around",
-          marginBottom: 20,
-        }}
-      >
-        <button onClick={() => setTab("home")} style={{ flex: 1 }}>
-          🏠 Главная
-        </button>
-        <button onClick={() => setTab("report")} style={{ flex: 1 }}>
-          📊 Отчёт
-        </button>
-      </div>
+  const renderContent = () => {
+    switch (tab) {
+      case "home":
+        return (
+          <div className="p-4 pb-20">
+            <h2 className="text-lg font-semibold">
+              💰 Баланс: {balance} {currency}
+            </h2>
 
-      {/* Главная */}
-      {tab === "home" ? (
-        <>
-          <h2>
-            💰 Баланс: {balance} {currency}
-          </h2>
-
-          <div style={{ display: "flex", gap: 10, margin: "20px 0" }}>
-            <button onClick={() => handleAddRecord("income")} style={{ flex: 1 }}>
-              ➕ Доход
-            </button>
-            <button onClick={() => handleAddRecord("expense")} style={{ flex: 1 }}>
-              ➖ Расход
-            </button>
-          </div>
-
-          <h3>📜 Последние операции</h3>
-          {records.length === 0 ? (
-            <p>Нет операций</p>
-          ) : (
-            records.map((r) => (
-              <div
-                key={r.id}
-                onClick={() => handleEditRecord(r)}
-                style={{
-                  padding: "10px",
-                  margin: "5px 0",
-                  borderRadius: "8px",
-                  backgroundColor:
-                    r.type === "income" ? "#eaffea" : "#ffeaea",
-                  cursor: "pointer",
-                }}
+            <div className="flex gap-2 my-4">
+              <button
+                onClick={() => handleAddRecord("income")}
+                className="flex-1 bg-green-500 text-white py-2 rounded"
               >
-                {r.type === "income" ? "➕" : "➖"} {r.amount} {currency}{" "}
-                {r.category_name && `(${r.category_name})`}
-                <div style={{ fontSize: "0.8rem", color: "#666" }}>
-                  {r.description || "—"} |{" "}
-                  {new Date(r.created_at).toLocaleString()}
-                </div>
-              </div>
-            ))
-          )}
-        </>
-      ) : (
-        <>
-          {/* Отчёт */}
-          <h2>📊 Отчёт</h2>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => fetchReport("day")}>Сутки</button>
-            <button onClick={() => fetchReport("week")}>Неделя</button>
-            <button onClick={() => fetchReport("month")}>Месяц</button>
-            <button onClick={() => fetchReport("year")}>Год</button>
-          </div>
-
-          {report && (
-            <div
-              style={{
-                backgroundColor: "#f0f8ff",
-                padding: 15,
-                borderRadius: 10,
-                marginTop: 20,
-              }}
-            >
-              <p>
-                <b>Период:</b> {report.period_label}
-              </p>
-              <p>
-                Доход: {report.income} {currency}
-              </p>
-              <p>
-                Расход: {report.expense} {currency}
-              </p>
-              <p>
-                Баланс: {report.balance} {currency}
-              </p>
+                ➕ Доход
+              </button>
+              <button
+                onClick={() => handleAddRecord("expense")}
+                className="flex-1 bg-red-500 text-white py-2 rounded"
+              >
+                ➖ Расход
+              </button>
             </div>
-          )}
-        </>
-      )}
+
+            <h3 className="text-md font-semibold mb-2">📜 Последние операции</h3>
+            {records.length === 0 ? (
+              <p>Нет операций</p>
+            ) : (
+              records.map((r) => (
+                <div
+                  key={r.id}
+                  onClick={() => handleEditRecord(r)}
+                  className={`p-3 mb-2 rounded cursor-pointer ${
+                    r.type === "income" ? "bg-green-50" : "bg-red-50"
+                  }`}
+                >
+                  {r.type === "income" ? "➕" : "➖"} {r.amount} {currency}{" "}
+                  {r.category_name && `(${r.category_name})`}
+                  <div className="text-xs text-gray-500">
+                    {r.description || "—"} |{" "}
+                    {new Date(r.created_at).toLocaleString()}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        );
+
+      case "records":
+        return (
+          <div className="p-4 pb-20">
+            <h2 className="text-lg font-semibold mb-2">📋 Все операции</h2>
+            {records.length === 0 ? (
+              <p>Нет операций</p>
+            ) : (
+              records.map((r) => (
+                <div
+                  key={r.id}
+                  onClick={() => handleEditRecord(r)}
+                  className={`p-3 mb-2 rounded cursor-pointer ${
+                    r.type === "income" ? "bg-green-50" : "bg-red-50"
+                  }`}
+                >
+                  {r.type === "income" ? "➕" : "➖"} {r.amount} {currency}{" "}
+                  {r.category_name && `(${r.category_name})`}
+                  <div className="text-xs text-gray-500">
+                    {r.description || "—"} |{" "}
+                    {new Date(r.created_at).toLocaleString()}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        );
+
+      case "reports":
+        return (
+          <div className="p-4 pb-20">
+            <h2 className="text-lg font-semibold">📊 Отчёт</h2>
+            <div className="flex gap-2 my-2">
+              <button onClick={() => fetchReport("day")} className="flex-1 bg-gray-100 rounded py-2">
+                Сутки
+              </button>
+              <button onClick={() => fetchReport("week")} className="flex-1 bg-gray-100 rounded py-2">
+                Неделя
+              </button>
+              <button onClick={() => fetchReport("month")} className="flex-1 bg-gray-100 rounded py-2">
+                Месяц
+              </button>
+              <button onClick={() => fetchReport("year")} className="flex-1 bg-gray-100 rounded py-2">
+                Год
+              </button>
+            </div>
+
+            {report && (
+              <div className="bg-blue-50 p-4 rounded mt-3">
+                <p><b>Период:</b> {report.period_label}</p>
+                <p>Доход: {report.income} {currency}</p>
+                <p>Расход: {report.expense} {currency}</p>
+                <p>Баланс: {report.balance} {currency}</p>
+              </div>
+            )}
+          </div>
+        );
+
+      case "settings":
+        return (
+          <div className="p-4 pb-20">
+            <h2 className="text-lg font-semibold mb-2">⚙️ Настройки</h2>
+            <p>Валюта: {currency}</p>
+            <p>Стартовый баланс: {balance}</p>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <div className="flex-grow overflow-auto">{renderContent()}</div>
+
+      {/* Нижняя панель навигации */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-sm flex justify-around items-center py-2">
+        <button onClick={() => setTab("home")} className={`flex flex-col items-center text-sm ${tab === "home" ? "text-blue-600" : "text-gray-500"}`}>
+          <Home size={22} />
+          <span>Главная</span>
+        </button>
+
+        <button onClick={() => setTab("records")} className={`flex flex-col items-center text-sm ${tab === "records" ? "text-blue-600" : "text-gray-500"}`}>
+          <List size={22} />
+          <span>Операции</span>
+        </button>
+
+        <button onClick={() => setTab("reports")} className={`flex flex-col items-center text-sm ${tab === "reports" ? "text-blue-600" : "text-gray-500"}`}>
+          <BarChart3 size={22} />
+          <span>Отчёты</span>
+        </button>
+
+        <button onClick={() => setTab("settings")} className={`flex flex-col items-center text-sm ${tab === "settings" ? "text-blue-600" : "text-gray-500"}`}>
+          <Settings size={22} />
+          <span>Настройки</span>
+        </button>
+      </nav>
     </div>
   );
 }
