@@ -5,6 +5,23 @@ import { Home, List, BarChart3, Settings } from "lucide-react";
 
 const BACKEND_URL = "https://finance-backend-u1ox.onrender.com";
 
+// ✅ Добавляем стили прямо здесь, чтобы не было смещения
+const appStyle = {
+  display: "flex",
+  flexDirection: "column",
+  minHeight: "100vh",
+  backgroundColor: "#f9fafb",
+  alignItems: "center",
+  justifyContent: "center",
+  paddingBottom: "4rem",
+};
+
+const contentStyle = {
+  width: "100%",
+  maxWidth: "500px",
+  flexGrow: 1,
+};
+
 function App() {
   const tg = window.Telegram?.WebApp;
 
@@ -53,7 +70,6 @@ function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ✅ Сохранить стартовые данные
   const handleSaveStartData = async () => {
     if (!tempBalance || isNaN(tempBalance))
       return alert("Введите корректный баланс");
@@ -75,7 +91,6 @@ function App() {
     setIsFirstVisit(false);
   };
 
-  // ✅ Добавить операцию
   const handleAddRecord = async (type) => {
     const user_id = tg?.initDataUnsafe?.user?.id;
     const amount = parseFloat(prompt("Введите сумму:", "100"));
@@ -102,7 +117,6 @@ function App() {
     fetchBalance();
   };
 
-  // ✅ Редактировать операцию
   const handleEditRecord = async (r) => {
     const newAmount = parseFloat(prompt("Новая сумма:", r.amount));
     if (!newAmount) return;
@@ -126,14 +140,12 @@ function App() {
     fetchBalance();
   };
 
-  // ✅ Получить операции
   const fetchRecords = async () => {
     const user_id = tg?.initDataUnsafe?.user?.id;
     const res = await fetch(`${BACKEND_URL}/api/records?user_id=${user_id}`);
     setRecords(await res.json());
   };
 
-  // ✅ Получить баланс
   const fetchBalance = async () => {
     const user_id = tg?.initDataUnsafe?.user?.id;
     const res = await fetch(`${BACKEND_URL}/api/report?period=year&user_id=${user_id}`);
@@ -143,7 +155,6 @@ function App() {
     );
   };
 
-  // ✅ Получить отчёт
   const fetchReport = async (period) => {
     const user_id = tg?.initDataUnsafe?.user?.id;
     const res = await fetch(`${BACKEND_URL}/api/report?period=${period}&user_id=${user_id}`);
@@ -155,37 +166,37 @@ function App() {
     });
   };
 
-  // ========================== UI ==========================
-
   if (loading) return <div className="App p-4">Загрузка...</div>;
 
   if (isFirstVisit)
     return (
-      <div className="App p-4 text-center">
-        <h1>👋 Добро пожаловать!</h1>
-        <p>Введите валюту и стартовый баланс:</p>
-        <select
-          value={tempCurrency}
-          onChange={(e) => setTempCurrency(e.target.value)}
-          className="border rounded p-2"
-        >
-          <option value="₽">₽</option>
-          <option value="$">$</option>
-          <option value="€">€</option>
-        </select>
-        <input
-          type="number"
-          value={tempBalance}
-          onChange={(e) => setTempBalance(e.target.value)}
-          placeholder="Баланс"
-          className="border rounded p-2 mx-2"
-        />
-        <button
-          onClick={handleSaveStartData}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Сохранить
-        </button>
+      <div style={appStyle}>
+        <div style={contentStyle} className="App p-4 text-center">
+          <h1>👋 Добро пожаловать!</h1>
+          <p>Введите валюту и стартовый баланс:</p>
+          <select
+            value={tempCurrency}
+            onChange={(e) => setTempCurrency(e.target.value)}
+            className="border rounded p-2"
+          >
+            <option value="₽">₽</option>
+            <option value="$">$</option>
+            <option value="€">€</option>
+          </select>
+          <input
+            type="number"
+            value={tempBalance}
+            onChange={(e) => setTempBalance(e.target.value)}
+            placeholder="Баланс"
+            className="border rounded p-2 mx-2"
+          />
+          <button
+            onClick={handleSaveStartData}
+            className="bg-blue-500 text-white px-4 py-2 rounded"
+          >
+            Сохранить
+          </button>
+        </div>
       </div>
     );
 
@@ -193,7 +204,7 @@ function App() {
     switch (tab) {
       case "home":
         return (
-          <div className="p-4 pb-20">
+          <div style={contentStyle} className="p-4 pb-20">
             <h2 className="text-lg font-semibold">
               💰 Баланс: {balance} {currency}
             </h2>
@@ -239,7 +250,7 @@ function App() {
 
       case "records":
         return (
-          <div className="p-4 pb-20">
+          <div style={contentStyle} className="p-4 pb-20">
             <h2 className="text-lg font-semibold mb-2">📋 Все операции</h2>
             {records.length === 0 ? (
               <p>Нет операций</p>
@@ -266,7 +277,7 @@ function App() {
 
       case "reports":
         return (
-          <div className="p-4 pb-20">
+          <div style={contentStyle} className="p-4 pb-20">
             <h2 className="text-lg font-semibold">📊 Отчёт</h2>
             <div className="flex gap-2 my-2">
               <button onClick={() => fetchReport("day")} className="flex-1 bg-gray-100 rounded py-2">
@@ -296,7 +307,7 @@ function App() {
 
       case "settings":
         return (
-          <div className="p-4 pb-20">
+          <div style={contentStyle} className="p-4 pb-20">
             <h2 className="text-lg font-semibold mb-2">⚙️ Настройки</h2>
             <p>Валюта: {currency}</p>
             <p>Стартовый баланс: {balance}</p>
@@ -309,8 +320,8 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <div className="flex-grow overflow-auto">{renderContent()}</div>
+    <div style={appStyle}>
+      <div style={contentStyle}>{renderContent()}</div>
 
       {/* Нижняя панель навигации */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-sm flex justify-around items-center py-2">
