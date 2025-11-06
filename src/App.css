@@ -22,13 +22,60 @@ body, html {
   text-align: center;
 }
 
+/* ===== Верхняя шапка с балансом ===== */
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 18px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+}
+
+header h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+header button {
+  background: none;
+  border: none;
+  color: #f1f5f9;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+
+header button:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
+
+header button:focus {
+  outline: none;
+}
+
 /* ===== Основной контент ===== */
 .main-content {
   flex: 1;
   width: 100%;
   max-width: 500px;
   margin: 0 auto;
-  padding: 20px 16px 80px; /* место под нижнюю панель */
+  padding: 80px 16px 80px; /* отступ сверху под шапку и снизу под навбар */
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -72,37 +119,49 @@ button:active {
 }
 
 /* ===== Нижняя панель навигации ===== */
-.navbar {
+nav {
   position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
   height: 65px;
   background-color: #ffffff;
-  border-top: 1px solid #ddd;
+  border-top: 1px solid #e0e0e0;
   display: flex;
-  justify-content: space-around;
+  justify-content: space-evenly;
   align-items: center;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
   z-index: 1000;
 }
 
-.navbar button {
-  background: none;
-  color: #666;
-  font-size: 13px;
-  font-weight: 500;
+nav button {
+  flex: 1;
+  max-width: 25%;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   align-items: center;
+  color: #555;
+  font-size: 13px;
+  font-weight: 500;
+  background: none;
   border: none;
-  outline: none;
-  transition: color 0.2s ease;
+  transition: all 0.2s ease-in-out;
 }
 
-.navbar button.active {
+nav button svg {
+  margin-bottom: 4px;
+}
+
+nav button.active {
   color: #0088cc;
   font-weight: 600;
+}
+
+nav button:hover {
+  background-color: #f9f9f9;
+  transform: translateY(-1px);
 }
 
 /* ===== Карточки операций ===== */
@@ -178,71 +237,4 @@ input:focus, select:focus {
   height: 100vh;
   font-size: 1.2rem;
   color: #555;
-}
-
-/* ✅ Исправляем нижнюю панель навигации */
-nav {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  flex-wrap: nowrap; /* ❌ запретить перенос */
-  white-space: nowrap; /* ❌ не переносить текст */
-  overflow-x: hidden;
-}
-
-nav button {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 4px 0;
-}
-
-/* ✅ Современная нижняя панель, равномерно растянутая по экрану */
-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 65px;
-  background-color: #ffffff;
-  border-top: 1px solid #e0e0e0;
-  display: flex;
-  justify-content: space-evenly; /* ✅ равномерное распределение */
-  align-items: center;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-  z-index: 1000;
-}
-
-nav button {
-  flex: 1;
-  max-width: 25%; /* ✅ каждая кнопка занимает четверть ширины */
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  color: #555;
-  font-size: 13px;
-  font-weight: 500;
-  background: none;
-  border: none;
-  transition: all 0.2s ease-in-out;
-}
-
-nav button svg {
-  margin-bottom: 4px;
-}
-
-nav button.active {
-  color: #0088cc;
-  font-weight: 600;
-}
-
-nav button:hover {
-  background-color: #f9f9f9;
-  transform: translateY(-1px);
 }
