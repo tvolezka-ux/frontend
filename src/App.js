@@ -1,11 +1,10 @@
 // src/App.js
 import React, { useEffect, useState } from "react";
 import "./App.css";
-import { Home, List, BarChart3, Settings, Eye, EyeOff } from "lucide-react";
+import { Home, List, BarChart3, Settings, Eye, EyeOff, X } from "lucide-react";
 
 const BACKEND_URL = "https://finance-backend-u1ox.onrender.com";
 
-// ✅ Основной стиль контейнера
 const appStyle = {
   display: "flex",
   flexDirection: "column",
@@ -20,7 +19,7 @@ const contentStyle = {
   width: "100%",
   maxWidth: "500px",
   flexGrow: 1,
-  paddingTop: "70px", // отступ под шапку
+  paddingTop: "70px",
 };
 
 function App() {
@@ -36,17 +35,23 @@ function App() {
   const [tempCurrency, setTempCurrency] = useState("₽");
   const [tempBalance, setTempBalance] = useState("");
   const [loading, setLoading] = useState(true);
-  const [hideBalance, setHideBalance] = useState(false); // 👁‍🗨 скрытие баланса
+  const [hideBalance, setHideBalance] = useState(false);
+
+  // ✅ для модалки добавления записи
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState("income");
+  const [amount, setAmount] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [description, setDescription] = useState("");
 
   useEffect(() => {
     if (tg) tg.expand();
-
     const user_id = tg?.initDataUnsafe?.user?.id;
     if (!user_id) return setLoading(false);
 
     Promise.all([
-      fetch(`${BACKEND_URL}/api/get_user?user_id=${user_id}`).then(r => r.json()),
-      fetch(`${BACKEND_URL}/api/categories`).then(r => r.json()).catch(() => []),
+      fetch(`${BACKEND_URL}/api/get_user?user_id=${user_id}`).then((r) => r.json()),
+      fetch(`${BACKEND_URL}/api/categories`).then((r) => r.json()).catch(() => []),
     ])
       .then(([user, cats]) => {
         setCategories(cats || []);
@@ -56,25 +61,22 @@ function App() {
           setIsFirstVisit(user.start_balance === 0);
         }
         return Promise.all([
-          fetch(`${BACKEND_URL}/api/report?period=year&user_id=${user_id}`).then(r => r.json()),
-          fetch(`${BACKEND_URL}/api/records?user_id=${user_id}`).then(r => r.json()),
+          fetch(`${BACKEND_URL}/api/report?period=year&user_id=${user_id}`).then((r) => r.json()),
+          fetch(`${BACKEND_URL}/api/records?user_id=${user_id}`).then((r) => r.json()),
         ]);
       })
       .then(([reportData, recordsData]) => {
         setBalance(
-          (reportData.start_balance || 0) +
-          (reportData.income || 0) -
-          (reportData.expense || 0)
+          (reportData.start_balance || 0) + (reportData.income || 0) - (reportData.expense || 0)
         );
         setRecords(recordsData);
       })
-      .catch(e => console.error("Ошибка загрузки:", e))
+      .catch((e) => console.error("Ошибка загрузки:", e))
       .finally(() => setLoading(false));
   }, []);
 
   const handleSaveStartData = async () => {
-    if (!tempBalance || isNaN(tempBalance))
-      return alert("Введите корректный баланс");
+    if (!tempBalance || isNaN(tempBalance)) return alert("Введите корректный баланс");
     const user_id = tg?.initDataUnsafe?.user?.id;
     if (!user_id) return alert("Открой приложение через Telegram.");
 
@@ -93,28 +95,36 @@ function App() {
     setIsFirstVisit(false);
   };
 
-  const handleAddRecord = async (type) => {
-    const user_id = tg?.initDataUnsafe?.user?.id;
-    const amount = parseFloat(prompt("Введите сумму:", "100"));
-    if (!amount) return;
+  // ✅ Новая функция добавления через модалку
+  const openAddModal = (type) => {
+    setModalType(type);
+    setShowModal(true);
+    setAmount("");
+    setSelectedCategory("");
+    setDescription("");
+  };
 
-    const category_id = prompt("Введите ID категории (или оставьте пустым):");
-    const description = prompt("Введите описание:");
+  const handleAddRecord = async () => {
+    const user_id = tg?.initDataUnsafe?.user?.id;
+    if (!user_id) return alert("Открой приложение через Telegram.");
+
+    if (!amount || isNaN(amount)) return alert("Введите корректную сумму");
+    if (!selectedCategory) return alert("Выберите категорию");
 
     await fetch(`${BACKEND_URL}/api/add`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         user_id,
-        type,
-        amount,
+        type: modalType,
+        amount: parseFloat(amount),
         currency,
-        category_id: category_id || null,
+        category_id: selectedCategory,
         description,
       }),
     });
 
-    alert("✅ Добавлено!");
+    setShowModal(false);
     fetchRecords();
     fetchBalance();
   };
@@ -152,9 +162,7 @@ function App() {
     const user_id = tg?.initDataUnsafe?.user?.id;
     const res = await fetch(`${BACKEND_URL}/api/report?period=year&user_id=${user_id}`);
     const data = await res.json();
-    setBalance(
-      (data.start_balance || 0) + (data.income || 0) - (data.expense || 0)
-    );
+    setBalance((data.start_balance || 0) + (data.income || 0) - (data.expense || 0));
   };
 
   const fetchReport = async (period) => {
@@ -176,11 +184,7 @@ function App() {
         <div style={contentStyle} className="App p-4 text-center">
           <h1>👋 Добро пожаловать!</h1>
           <p>Введите валюту и стартовый баланс:</p>
-          <select
-            value={tempCurrency}
-            onChange={(e) => setTempCurrency(e.target.value)}
-            className="border rounded p-2"
-          >
+          <select value={tempCurrency} onChange={(e) => setTempCurrency(e.target.value)}>
             <option value="₽">₽</option>
             <option value="$">$</option>
             <option value="€">€</option>
@@ -190,14 +194,8 @@ function App() {
             value={tempBalance}
             onChange={(e) => setTempBalance(e.target.value)}
             placeholder="Баланс"
-            className="border rounded p-2 mx-2"
           />
-          <button
-            onClick={handleSaveStartData}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
-          >
-            Сохранить
-          </button>
+          <button onClick={handleSaveStartData}>Сохранить</button>
         </div>
       </div>
     );
@@ -207,18 +205,11 @@ function App() {
       case "home":
         return (
           <div className="p-4 pb-20">
-            {/* кнопки добавления */}
             <div className="flex gap-2 my-4">
-              <button
-                onClick={() => handleAddRecord("income")}
-                className="flex-1 bg-green-500 text-white py-2 rounded"
-              >
+              <button onClick={() => openAddModal("income")} className="flex-1 bg-green-500 text-white py-2 rounded">
                 ➕ Доход
               </button>
-              <button
-                onClick={() => handleAddRecord("expense")}
-                className="flex-1 bg-red-500 text-white py-2 rounded"
-              >
+              <button onClick={() => openAddModal("expense")} className="flex-1 bg-red-500 text-white py-2 rounded">
                 ➖ Расход
               </button>
             </div>
@@ -238,8 +229,7 @@ function App() {
                   {r.type === "income" ? "➕" : "➖"} {r.amount} {currency}{" "}
                   {r.category_name && `(${r.category_name})`}
                   <div className="text-xs text-gray-500">
-                    {r.description || "—"} |{" "}
-                    {new Date(r.created_at).toLocaleString()}
+                    {r.description || "—"} | {new Date(r.created_at).toLocaleString()}
                   </div>
                 </div>
               ))
@@ -265,8 +255,7 @@ function App() {
                   {r.type === "income" ? "➕" : "➖"} {r.amount} {currency}{" "}
                   {r.category_name && `(${r.category_name})`}
                   <div className="text-xs text-gray-500">
-                    {r.description || "—"} |{" "}
-                    {new Date(r.created_at).toLocaleString()}
+                    {r.description || "—"} | {new Date(r.created_at).toLocaleString()}
                   </div>
                 </div>
               ))
@@ -279,20 +268,12 @@ function App() {
           <div className="p-4 pb-20">
             <h2 className="text-lg font-semibold">📊 Отчёт</h2>
             <div className="flex gap-2 my-2">
-              <button onClick={() => fetchReport("day")} className="flex-1 bg-gray-100 rounded py-2">
-                Сутки
-              </button>
-              <button onClick={() => fetchReport("week")} className="flex-1 bg-gray-100 rounded py-2">
-                Неделя
-              </button>
-              <button onClick={() => fetchReport("month")} className="flex-1 bg-gray-100 rounded py-2">
-                Месяц
-              </button>
-              <button onClick={() => fetchReport("year")} className="flex-1 bg-gray-100 rounded py-2">
-                Год
-              </button>
+              {["day", "week", "month", "year"].map((p) => (
+                <button key={p} onClick={() => fetchReport(p)} className="flex-1 bg-gray-100 rounded py-2 capitalize">
+                  {p === "day" ? "Сутки" : p === "week" ? "Неделя" : p === "month" ? "Месяц" : "Год"}
+                </button>
+              ))}
             </div>
-
             {report && (
               <div className="bg-blue-50 p-4 rounded mt-3">
                 <p><b>Период:</b> {report.period_label}</p>
@@ -320,7 +301,6 @@ function App() {
 
   return (
     <div style={appStyle}>
-      {/* ===== Верхняя шапка с балансом (только для Главной и Операций) ===== */}
       {(tab === "home" || tab === "records") && (
         <header className="fixed top-0 left-0 w-full h-14 bg-gradient-to-r from-blue-500 to-blue-400 text-white flex justify-center items-center px-4 shadow-md z-10">
           <div className="flex items-center gap-2 text-lg font-semibold">
@@ -329,7 +309,7 @@ function App() {
             </span>
             <button
               onClick={() => setHideBalance(!hideBalance)}
-              className="flex items-center justify-center text-white/90 hover:text-white focus:outline-none"
+              className="text-white/90 hover:text-white focus:outline-none"
               style={{ padding: 0, margin: 0 }}
             >
               {hideBalance ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -340,23 +320,78 @@ function App() {
 
       <div style={contentStyle}>{renderContent()}</div>
 
-      {/* ===== Нижняя панель навигации ===== */}
+      {/* ✅ Модальное окно добавления */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-lg w-11/12 max-w-md p-5 relative">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+            >
+              <X size={22} />
+            </button>
+            <h2 className="text-xl font-semibold mb-4">
+              {modalType === "income" ? "Добавление дохода" : "Добавление расхода"}
+            </h2>
+
+            <label className="block text-sm text-gray-700 mb-1">Введите сумму:</label>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Сумма"
+              className="w-full border rounded-lg p-2 mb-3"
+            />
+
+            <label className="block text-sm text-gray-700 mb-1">Выберите категорию:</label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full border rounded-lg p-2 mb-3"
+            >
+              <option value="">Выберите категорию</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
+            <label className="block text-sm text-gray-700 mb-1">Введите описание:</label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Описание"
+              className="w-full border rounded-lg p-2 mb-4"
+            />
+
+            <button
+              onClick={handleAddRecord}
+              className={`w-full py-2 rounded-lg text-white ${
+                modalType === "income" ? "bg-green-500" : "bg-red-500"
+              }`}
+            >
+              Добавить
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Нижняя навигация */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-sm flex justify-around items-center py-2">
         <button onClick={() => setTab("home")} className={`flex flex-col items-center text-sm ${tab === "home" ? "text-blue-600" : "text-gray-500"}`}>
           <Home size={22} />
           <span>Главная</span>
         </button>
-
         <button onClick={() => setTab("records")} className={`flex flex-col items-center text-sm ${tab === "records" ? "text-blue-600" : "text-gray-500"}`}>
           <List size={22} />
           <span>Операции</span>
         </button>
-
         <button onClick={() => setTab("reports")} className={`flex flex-col items-center text-sm ${tab === "reports" ? "text-blue-600" : "text-gray-500"}`}>
           <BarChart3 size={22} />
           <span>Отчёты</span>
         </button>
-
         <button onClick={() => setTab("settings")} className={`flex flex-col items-center text-sm ${tab === "settings" ? "text-blue-600" : "text-gray-500"}`}>
           <Settings size={22} />
           <span>Настройки</span>
