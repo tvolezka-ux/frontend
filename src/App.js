@@ -322,16 +322,19 @@ function App() {
     <div style={appStyle}>
       {/* ===== Верхняя шапка с балансом (только для Главной и Операций) ===== */}
       {(tab === "home" || tab === "records") && (
-        <header className="fixed top-0 left-0 w-full h-14 bg-gradient-to-r from-blue-500 to-blue-400 text-white flex justify-between items-center px-4 shadow-md z-10">
-          <h2 className="text-lg font-semibold">
-            Баланс: {hideBalance ? "****" : `${balance?.toLocaleString()} ${currency}`}
-          </h2>
-          <button
-            className="bg-transparent text-white"
-            onClick={() => setHideBalance(!hideBalance)}
-          >
-            {hideBalance ? <EyeOff size={22} /> : <Eye size={22} />}
-          </button>
+        <header className="fixed top-0 left-0 w-full h-14 bg-gradient-to-r from-blue-500 to-blue-400 text-white flex justify-center items-center px-4 shadow-md z-10">
+          <div className="flex items-center gap-2 text-lg font-semibold">
+            <span>
+              Баланс: {hideBalance ? "****" : `${balance?.toLocaleString()} ${currency}`}
+            </span>
+            <button
+              onClick={() => setHideBalance(!hideBalance)}
+              className="flex items-center justify-center text-white/90 hover:text-white focus:outline-none"
+              style={{ padding: 0, margin: 0 }}
+            >
+              {hideBalance ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
         </header>
       )}
 
