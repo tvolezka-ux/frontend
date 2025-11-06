@@ -36,7 +36,7 @@ function App() {
   const [tempCurrency, setTempCurrency] = useState("₽");
   const [tempBalance, setTempBalance] = useState("");
   const [loading, setLoading] = useState(true);
-  const [hideBalance, setHideBalance] = useState(false); // 👁‍🗨 добавлено
+  const [hideBalance, setHideBalance] = useState(false); // 👁‍🗨 скрытие баланса
 
   useEffect(() => {
     if (tg) tg.expand();
@@ -63,7 +63,7 @@ function App() {
       .then(([reportData, recordsData]) => {
         setBalance(
           (reportData.start_balance || 0) +
-          (reportData.income || 0) - 
+          (reportData.income || 0) -
           (reportData.expense || 0)
         );
         setRecords(recordsData);
@@ -207,6 +207,22 @@ function App() {
       case "home":
         return (
           <div className="p-4 pb-20">
+            {/* кнопки добавления */}
+            <div className="flex gap-2 my-4">
+              <button
+                onClick={() => handleAddRecord("income")}
+                className="flex-1 bg-green-500 text-white py-2 rounded"
+              >
+                ➕ Доход
+              </button>
+              <button
+                onClick={() => handleAddRecord("expense")}
+                className="flex-1 bg-red-500 text-white py-2 rounded"
+              >
+                ➖ Расход
+              </button>
+            </div>
+
             <h3 className="text-md font-semibold mb-2">📜 Последние операции</h3>
             {records.length === 0 ? (
               <p>Нет операций</p>
@@ -263,10 +279,18 @@ function App() {
           <div className="p-4 pb-20">
             <h2 className="text-lg font-semibold">📊 Отчёт</h2>
             <div className="flex gap-2 my-2">
-              <button onClick={() => fetchReport("day")} className="flex-1 bg-gray-100 rounded py-2">Сутки</button>
-              <button onClick={() => fetchReport("week")} className="flex-1 bg-gray-100 rounded py-2">Неделя</button>
-              <button onClick={() => fetchReport("month")} className="flex-1 bg-gray-100 rounded py-2">Месяц</button>
-              <button onClick={() => fetchReport("year")} className="flex-1 bg-gray-100 rounded py-2">Год</button>
+              <button onClick={() => fetchReport("day")} className="flex-1 bg-gray-100 rounded py-2">
+                Сутки
+              </button>
+              <button onClick={() => fetchReport("week")} className="flex-1 bg-gray-100 rounded py-2">
+                Неделя
+              </button>
+              <button onClick={() => fetchReport("month")} className="flex-1 bg-gray-100 rounded py-2">
+                Месяц
+              </button>
+              <button onClick={() => fetchReport("year")} className="flex-1 bg-gray-100 rounded py-2">
+                Год
+              </button>
             </div>
 
             {report && (
